@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pomodoro Quest</title>
+  <style>
+    :root {
+      --bg-1: #090b16;
+      --bg-2: #171a35;
+      --panel: rgba(18, 22, 48, 0.92);
+      --panel-soft: rgba(255, 255, 255, 0.06);
+      --text: #f4f7ff;
+      --muted: #9ea8d8;
+      --accent: #7cf6ff;
+      --accent-2: #ffca5f;
+      --danger: #ff5f7a;
+      --success: #83ff9b;
+      --shadow: rgba(0, 0, 0, 0.5);
+      --border: rgba(124, 246, 255, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(124, 246, 255, 0.2), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(255, 202, 95, 0.18), transparent 30%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+      pointer-events: none;
+    }
+
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.04),
+        rgba(255, 255, 255, 0.04) 1px,
+        transparent 1px,
+        transparent 5px
+      );
+      opacity: 0.22;
+      pointer-events: none;
+    }
+
+    .game-frame {
+      width: min(92vw, 620px);
+      padding: 28px;
+      border: 2px solid var(--border);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow:
+        0 28px 80px var(--shadow),
+        inset 0 0 28px rgba(124, 246, 255, 0.08),
+        0 0 36px rgba(124, 246, 255, 0.2);
+      position: relative;
+      isolation: isolate;
+    }
+
+    .game-frame::before,
+    .game-frame::after {
+      content: "";
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-color: var(--accent-2);
+      border-style: solid;
+      pointer-events: none;
+    }
+
+    .game-frame::before {
+      top: 12px;
+      left: 12px;
+      border-width: 3px 0 0 3px;
+      border-radius: 18px 0 0 0;
+    }
+
+    .game-frame::after {
+      right: 12px;
+      bottom: 12px;
+      border-width: 0 3px 3px 0;
+      border-radius: 0 0 18px 0;
+    }
+
+    .title {
+      text-align: center;
+      margin-bottom: 22px;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      text-shadow: 0 0 14px rgba(124, 246, 255, 0.75);
+    }
+
+    .title small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      letter-spacing: 3px;
+    }
+
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .hud-card {
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      background: var(--panel-soft);
+      text-align: center;
+    }
+
+    .hud-label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .hud-value {
+      margin-top: 6px;
+      font-size: 1.1rem;
+      color: var(--accent-2);
+    }
+
+    .timer-panel {
+      display: grid;
+      place-items: center;
+      padding: 28px 18px;
+      border: 1px solid rgba(124, 246, 255, 0.24);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+      margin-bottom: 22px;
+    }
+
+    .mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--success);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 0.9rem;
+    }
+
+    .mode::before {
+      content: "▶";
+      color: var(--accent-2);
+      animation: blink 1s steps(2, start) infinite;
+    }
+
+    .time {
+      font-size: clamp(4rem, 16vw, 7.8rem);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: var(--text);
+      text-shadow:
+        0 0 18px rgba(124, 246, 255, 0.8),
+        4px 4px 0 rgba(255, 95, 122, 0.22);
+    }
+
+    .xp-bar {
+      width: min(420px, 100%);
+      height: 16px;
+      margin-top: 22px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.28);
+    }
+
+    .xp-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 18px rgba(124, 246, 255, 0.75);
+      transition: width 0.25s ease;
+    }
+
+    .menu {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .menu-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    button {
+      position: relative;
+      border: 0;
+      cursor: pointer;
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      background: rgba(255,255,255,0.08);
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 8px 18px rgba(0,0,0,0.22);
+      transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      background: rgba(124, 246, 255, 0.14);
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 0 18px rgba(124, 246, 255, 0.22);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translate(220px, 90px);
+      cursor: pointer;
+    }
+
+    .primary {
+      background: linear-gradient(180deg, rgba(124, 246, 255, 0.34), rgba(53, 122, 255, 0.3));
+      border: 1px solid rgba(124, 246, 255, 0.55);
+    }
+
+    .warning {
+      background: linear-gradient(180deg, rgba(255, 202, 95, 0.36), rgba(255, 133, 73, 0.3));
+      border: 1px solid rgba(255, 202, 95, 0.55);
+    }
+
+    .danger {
+      background: linear-gradient(180deg, rgba(255, 95, 122, 0.35), rgba(167, 51, 83, 0.3));
+      border: 1px solid rgba(255, 95, 122, 0.55);
+    }
+
+    .settings {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    input {
+      pointer-events: auto;
+      caret-color: transparent;
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(0,0,0,0.22);
+      color: var(--text);
+      font: inherit;
+      text-align: center;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124, 246, 255, 0.12);
+    }
+
+    .footer {
+      margin-top: 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    @media (max-width: 560px) {
+      .game-frame { padding: 22px; }
+      .hud, .settings, .menu-row { grid-template-columns: 1fr; }
+      .title { letter-spacing: 3px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <main class="game-frame" aria-label="Pomodoro estilo menú de videojuego">
+    <header class="title">
+      <h1>Pomodoro Quest</h1>
+      <small>Focus Mission Timer</small>
+    </header>
+
+    <section class="hud" aria-label="Estado de partida">
+      <div class="hud-card">
+        <div class="hud-label">Misión</div>
+        <div class="hud-value" id="missionCount">0</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">Racha</div>
+        <div class="hud-value" id="streakCount">0</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">Estado</div>
+        <div class="hud-value" id="statusText">Ready</div>
+      </div>
+    </section>
+
+    <section class="timer-panel">
+      <div class="mode" id="modeText">Focus</div>
+      <div class="time" id="timeText">25:00</div>
+      <div class="xp-bar" aria-label="Progreso de la sesión">
+        <div class="xp-fill" id="progressBar"></div>
+      </div>
+    </section>
+
+    <section class="menu" aria-label="Controles principales">
+      <div class="menu-row">
+        <button class="primary" id="startBtn">Start</button>
+        <button class="warning" id="pauseBtn">Pause</button>
+        <button class="danger" id="resetBtn">Reset</button>
+      </div>
+      <button id="skipBtn">Skip Stage</button>
+    </section>
+
+    <section class="settings" aria-label="Configuración del Pomodoro">
+      <label>
+        Focus min
+        <input id="focusInput" type="number" min="1" max="180" value="25" inputmode="none" />
+      </label>
+      <label>
+        Break min
+        <input id="breakInput" type="number" min="1" max="60" value="5" inputmode="none" />
+      </label>
+      <label>
+        Long break
+        <input id="longBreakInput" type="number" min="1" max="120" value="15" inputmode="none" />
+      </label>
+    </section>
+
+    <p class="footer">Cada 4 misiones completadas desbloqueás un descanso largo.</p>
+  </main>
+
+  <script>
+    const timeText = document.getElementById("timeText");
+    const modeText = document.getElementById("modeText");
+    const statusText = document.getElementById("statusText");
+    const missionCount = document.getElementById("missionCount");
+    const streakCount = document.getElementById("streakCount");
+    const progressBar = document.getElementById("progressBar");
+
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const skipBtn = document.getElementById("skipBtn");
+
+    const focusInput = document.getElementById("focusInput");
+    const breakInput = document.getElementById("breakInput");
+    const longBreakInput = document.getElementById("longBreakInput");
+
+    let mode = "focus";
+    let missions = 0;
+    let streak = 0;
+    let isRunning = false;
+    let timerId = null;
+    let totalSeconds = minutesToSeconds(getFocusMinutes());
+    let remainingSeconds = totalSeconds;
+
+    function getFocusMinutes() {
+      return sanitizeMinutes(focusInput.value, 25);
+    }
+
+    function getBreakMinutes() {
+      return sanitizeMinutes(breakInput.value, 5);
+    }
+
+    function getLongBreakMinutes() {
+      return sanitizeMinutes(longBreakInput.value, 15);
+    }
+
+    function sanitizeMinutes(value, fallback) {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 1) return fallback;
+      return Math.floor(number);
+    }
+
+    function minutesToSeconds(minutes) {
+      return minutes * 60;
+    }
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+      const secs = (seconds % 60).toString().padStart(2, "0");
+      return `${minutes}:${secs}`;
+    }
+
+    function render() {
+      timeText.textContent = formatTime(remainingSeconds);
+      missionCount.textContent = missions;
+      streakCount.textContent = streak;
+      modeText.textContent = mode === "focus" ? "Focus" : mode === "longBreak" ? "Long Break" : "Break";
+      statusText.textContent = isRunning ? "Active" : "Ready";
+      document.title = `${formatTime(remainingSeconds)} · Pomodoro Quest`;
+
+      const elapsed = totalSeconds - remainingSeconds;
+      const progress = totalSeconds > 0 ? (elapsed / totalSeconds) * 100 : 0;
+      progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+    }
+
+    function setStage(nextMode) {
+      mode = nextMode;
+      if (mode === "focus") totalSeconds = minutesToSeconds(getFocusMinutes());
+      if (mode === "break") totalSeconds = minutesToSeconds(getBreakMinutes());
+      if (mode === "longBreak") totalSeconds = minutesToSeconds(getLongBreakMinutes());
+      remainingSeconds = totalSeconds;
+      render();
+    }
+
+    function completeStage() {
+      beep();
+
+      if (mode === "focus") {
+        missions += 1;
+        streak += 1;
+        const shouldLongBreak = missions % 4 === 0;
+        setStage(shouldLongBreak ? "longBreak" : "break");
+      } else {
+        setStage("focus");
+      }
+    }
+
+    function tick() {
+      if (remainingSeconds <= 0) {
+        completeStage();
+        return;
+      }
+
+      remainingSeconds -= 1;
+      render();
+
+      if (remainingSeconds <= 0) {
+        completeStage();
+      }
+    }
+
+    function startTimer() {
+      if (isRunning) return;
+      isRunning = true;
+      timerId = setInterval(tick, 1000);
+      render();
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      clearInterval(timerId);
+      timerId = null;
+      render();
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      streak = 0;
+      setStage("focus");
+    }
+
+    function skipStage() {
+      completeStage();
+      render();
+    }
+
+    function refreshCurrentStageFromInputs() {
+      if (isRunning) return;
+      setStage(mode);
+    }
+
+    function beep() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = "square";
+      oscillator.frequency.setValueAtTime(740, ctx.currentTime);
+      oscillator.frequency.setValueAtTime(540, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.25);
+    }
+
+    startBtn.addEventListener("click", startTimer);
+    pauseBtn.addEventListener("click", pauseTimer);
+    resetBtn.addEventListener("click", resetTimer);
+    skipBtn.addEventListener("click", skipStage);
+
+    focusInput.addEventListener("change", refreshCurrentStageFromInputs);
+    breakInput.addEventListener("change", refreshCurrentStageFromInputs);
+    longBreakInput.addEventListener("change", refreshCurrentStageFromInputs);
+
+    [focusInput, breakInput, longBreakInput].forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        const allowedKeys = ["Tab", "Shift", "ArrowUp", "ArrowDown"];
+
+        if (!allowedKeys.includes(event.key)) {
+          event.preventDefault();
+        }
+      });
+
+      input.addEventListener("paste", (event) => {
+        event.preventDefault();
+      });
+
+      input.addEventListener("wheel", (event) => {
+        event.preventDefault();
+
+        const step = event.deltaY < 0 ? 1 : -1;
+        const min = Number(input.min) || 1;
+        const max = Number(input.max) || 999;
+        const current = Number(input.value);
+
+        input.value = Math.min(max, Math.max(min, current + step));
+
+        refreshCurrentStageFromInputs();
+      }, { passive: false });
+    });
+
+    render();
+
+    document.querySelectorAll("button").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const rect = button.getBoundingClientRect();
+
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+
+        const validZone = (
+          offsetX >= 220 &&
+          offsetX <= rect.width + 220 &&
+          offsetY >= 90 &&
+          offsetY <= rect.height + 90
+        );
+
+        if (!validZone) {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+
+          button.animate(
+            [
+              { transform: "translateX(0px)" },
+              { transform: "translateX(-4px)" },
+              { transform: "translateX(4px)" },
+              { transform: "translateX(0px)" }
+            ],
+            {
+              duration: 140,
+              iterations: 1
+            }
+          );
+        }
+      }, true);
+    });
+  </script>
+</body>
+</html>
