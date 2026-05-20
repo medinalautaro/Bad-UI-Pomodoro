@@ -1,0 +1,457 @@
+openapi: 3.1.0
+info:
+  title: Online Product Price Comparison API
+  version: 1.1.0
+  description: API for managing products, competitors, prices, and scraping websites.
+
+servers:
+  - url: https://api.example.com/v1
+
+tags:
+  - name: Products
+  - name: Competitors
+  - name: Prices
+  - name: Webs
+
+paths:
+  /products:
+    get:
+      tags: [Products]
+      summary: List products
+      operationId: listProducts
+      responses:
+        "200":
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+    post:
+      tags: [Products]
+      summary: Create product
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /products/{id}/competitors:
+    get:
+      tags: [Competitors]
+      summary: List competitors for a product
+      operationId: listProductCompetitors
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          description: Competitors retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Competitor"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [Competitors]
+      summary: Add competitor to product
+      operationId: createProductCompetitor
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompetitorRequest"
+      responses:
+        "201":
+          description: Competitor created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Competitor"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products/{id}/prices:
+    get:
+      tags: [Prices]
+      summary: List prices for a product
+      operationId: listProductPrices
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          description: Prices retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Price"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products/{id}/price-checks:
+    post:
+      tags: [Prices]
+      summary: Trigger price check for a product
+      operationId: createProductPriceCheck
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "202":
+          description: Price check accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceCheckAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products/{id}/competitors/{competitorId}:
+    delete:
+      tags: [Competitors]
+      summary: Remove competitor from product
+      operationId: deleteProductCompetitor
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/CompetitorId"
+      responses:
+        "204":
+          description: Competitor deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /webs:
+    get:
+      tags: [Webs]
+      summary: List scraping websites
+      operationId: listWebs
+      responses:
+        "200":
+          description: Webs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Web"
+
+    post:
+      tags: [Webs]
+      summary: Register scraping website
+      operationId: createWeb
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebRequest"
+      responses:
+        "202":
+          description: Web registration accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Web"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /webs/{id}:
+    delete:
+      tags: [Webs]
+      summary: Delete scraping website
+      operationId: deleteWeb
+      parameters:
+        - $ref: "#/components/parameters/WebId"
+      responses:
+        "204":
+          description: Web deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    ProductId:
+      name: id
+      in: path
+      required: true
+      description: Product identifier
+      schema:
+        type: string
+        format: uuid
+
+    CompetitorId:
+      name: competitorId
+      in: path
+      required: true
+      description: Competitor identifier
+      schema:
+        type: string
+        format: uuid
+
+    WebId:
+      name: id
+      in: path
+      required: true
+      description: Web identifier
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - current_price
+        - currency
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        current_price:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        cost:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+        min_margin:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - current_price
+        - currency
+      properties:
+        name:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        current_price:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        cost:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+        min_margin:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+
+    Competitor:
+      type: object
+      required:
+        - id
+        - name
+        - product_url
+        - marketplace
+        - product_id
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        product_url:
+          type: string
+          format: uri
+        marketplace:
+          type: string
+        product_id:
+          type: string
+          format: uuid
+
+    CreateCompetitorRequest:
+      type: object
+      required:
+        - name
+        - product_url
+        - marketplace
+      properties:
+        name:
+          type: string
+        product_url:
+          type: string
+          format: uri
+        marketplace:
+          type: string
+
+    Price:
+      type: object
+      required:
+        - id
+        - amount
+        - currency
+        - source
+        - product_id
+        - checked_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        source:
+          type: string
+          enum:
+            - internal
+            - competitor
+            - manual
+            - automated_check
+        competitor_id:
+          type: string
+          format: uuid
+          nullable: true
+        product_id:
+          type: string
+          format: uuid
+        checked_at:
+          type: string
+          format: date-time
+
+    PriceCheckAccepted:
+      type: object
+      required:
+        - status
+        - product_id
+      properties:
+        status:
+          type: string
+          examples: ["accepted"]
+        product_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+
+    Web:
+      type: object
+      required:
+        - id
+        - nombre
+        - url
+        - precioScrap
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+          examples: ["MercadoLibre"]
+        url:
+          type: string
+          format: uri
+          examples:
+            - "https://www.mercadolibre.com.ar"
+        precioScrap:
+          type: number
+          format: double
+          minimum: 0
+          description: Scraped product price from the website.
+          examples: [24999.99]
+
+    CreateWebRequest:
+      type: object
+      required:
+        - nombre
+        - url
+        - precioScrap
+      properties:
+        nombre:
+          type: string
+        url:
+          type: string
+          format: uri
+        precioScrap:
+          type: number
+          format: double
+          minimum: 0
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          examples: ["BAD_REQUEST"]
+        message:
+          type: string
+          examples: ["Invalid request payload."]
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
